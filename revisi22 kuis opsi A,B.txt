@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kuis Interaktif Webcam - Opsi A & B Otomatis Ganti Soal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Mode cermin agar gerakan fisik siswa sinkron secara alami */
+    .video-mirror {
+      transform: scaleX(-1);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-white min-h-screen font-sans flex flex-col items-center justify-center p-4">
+
+  <!-- ================= 1. LAYAR LOGIN SANDI ================= -->
+  <div id="screen-login" class="w-full max-w-md bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl text-center space-y-6">
+    <div class="inline-flex p-4 bg-indigo-600/20 text-indigo-400 rounded-full mb-2">
+      <i class="fa-solid fa-gamepad text-4xl"></i>
+    </div>
+    <h1 class="text-3xl font-extrabold tracking-wide text-white">Kuis Interaktif</h1>
+    <p class="text-sm text-slate-400">Masukkan password untuk membuka aplikasi.</p>
+    
+    <div class="space-y-4 text-left">
+      <div class="relative">
+        <input type="password" id="input-password" placeholder="Password akses..." 
+               class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-white pr-20">
+        <button onclick="togglePasswordVisibility()" class="absolute right-3 top-3 text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-lg text-slate-300">
+          <span id="btn-toggle-text">Lihat</span>
+        </button>
+      </div>
+      <p id="login-error" class="text-xs text-rose-500 hidden font-medium">Password salah! (Default: guru123)</p>
+      
+      <button onclick="handleLogin()" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 font-bold rounded-xl shadow-lg transition duration-200">
+        Masuk Aplikasi
+      </button>
+    </div>
+    <p class="text-xs text-slate-500">Aplikasi memerlukan izin webcam untuk menampilkan interaksi siswa di layar proyektor.</p>
+  </div>
+
+  <!-- ================= 2. LAYAR PENGATURAN GURU ================= -->
+  <div id="screen-settings" class="hidden w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-5">
+    <!-- Header Indikator & Tombol Mulai -->
+    <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div class="flex items-center space-x-3">
+        <span class="px-3 py-1 bg-blue-600 text-white font-black rounded-lg text-lg">A</span>
+        <button onclick="startGame()" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl shadow-md transition text-base">
+          <i class="fa-solid fa-play mr-2"></i>Mulai Kuis
+        </button>
+        <span class="px-3 py-1 bg-rose-600 text-white font-black rounded-lg text-lg">B</span>
+      </div>
+      <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-3 py-1.5 rounded-full">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="camera-status">Kamera Aktif</span>
+      </div>
+    </div>
+
+    <!-- Timer Menjawab per Soal -->
+    <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60 space-y-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="font-bold text-slate-200">Timer Menjawab per Soal</h2>
+          <p class="text-xs text-slate-400" id="timer-desc-info">Saat waktu habis, kunci jawaban ditampilkan lalu otomatis berganti soal.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="adjustTimer(-5)" class="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center font-bold text-lg">-</button>
+          <span id="timer-display" class="font-mono text-xl font-bold bg-slate-900 px-3 py-1 rounded-lg border border-slate-700 min-w-[50px] text-center">10</span>
+          <button onclick="adjustTimer(5)" class="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center font-bold text-lg">+</button>
+          <span class="text-xs text-slate-400">detik</span>
+        </div>
+      </div>
+      <!-- Preset Buttons Timer Menjawab -->
+      <div class="flex flex-wrap gap-2 pt-1" id="timer-preset-container">
+        <button onclick="setTimerPreset(5)" class="preset-timer px-3 py-1 text-xs rounded-lg bg-slate-700 hover:bg-slate-600">5 detik</button>
+        <button onclick="setTimerPreset(10)" class="preset-timer px-3 py-1 text-xs rounded-lg bg-indigo-600 font-bold">10 detik</button>
+        <button onclick="setTimerPreset(15)" class="preset-timer px-3 py-1 text-xs rounded-lg bg-slate-700 hover:bg-slate-600">15 detik</button>
+        <button onclick="setTimerPreset(20)" class="preset-timer px-3 py-1 text-xs rounded-lg bg-slate-700 hover:bg-slate-600">20 detik</button>
+        <button onclick="setTimerPreset(30)" class="preset-timer px-3 py-1 text-xs rounded-lg bg-slate-700 hover:bg-slate-600">30 detik</button>
+      </div>
+    </div>
+
+    <!-- [FITUR BARU] Pengaturan Jeda Pergantian Soal Otomatis -->
+    <div class="bg-slate-800/60 p-4 rounded-xl border border-indigo-500/30 space-y-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="font-bold text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-forward-step text-indigo-400"></i> Jeda Pergantian Soal Otomatis
+          </h2>
+          <p class="text-xs text-slate-400">Durasi menampilkan kunci jawaban sebelum otomatis lanjut ke soal berikutnya.</p>
+        </div>
+        <span id="auto-next-display" class="font-mono text-xs font-bold text-indigo-300 bg-indigo-950/80 border border-indigo-700/60 px-3 py-1 rounded-lg">
+          Otomatis (3 dtk)
+        </span>
+      </div>
+      <!-- Pilihan 3 detik, 5 detik, 7 detik, 10 detik, & Manual -->
+      <div class="flex flex-wrap gap-2 pt-1" id="auto-next-container">
+        <button onclick="setAutoNext(3)" class="btn-autonext px-3.5 py-1.5 text-xs rounded-lg bg-indigo-600 text-white font-bold shadow">
+          3 detik
+        </button>
+        <button onclick="setAutoNext(5)" class="btn-autonext px-3.5 py-1.5 text-xs rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300">
+          5 detik
+        </button>
+        <button onclick="setAutoNext(7)" class="btn-autonext px-3.5 py-1.5 text-xs rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300">
+          7 detik
+        </button>
+        <button onclick="setAutoNext(10)" class="btn-autonext px-3.5 py-1.5 text-xs rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300">
+          10 detik
+        </button>
+        <button onclick="setAutoNext(0)" class="btn-autonext px-3.5 py-1.5 text-xs rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-400">
+          Manual (Klik Guru)
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Bank Soal -->
+    <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="font-bold text-slate-200">Pilih Mapel & Jenjang Siap Pakai</h2>
+        <div class="flex space-x-2">
+          <button onclick="openUploadModal()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-lg shadow">
+            <i class="fa-solid fa-file-arrow-up mr-1.5"></i>Upload File Soal
+          </button>
+          <button onclick="toggleQuestionEditor()" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg">
+            <i class="fa-solid fa-list-check mr-1.5"></i>Kelola Soal
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label class="text-xs text-slate-400">Jenjang</label>
+          <select id="select-jenjang" onchange="filterQuestions()" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm">
+            <option value="SMP">SMP (Fase D)</option>
+            <option value="SD">SD</option>
+            <option value="SMA">SMA</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Mata Pelajaran</label>
+          <select id="select-mapel" onchange="filterQuestions()" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm">
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Tingkat Kesulitan</label>
+          <select id="select-tingkat" onchange="filterQuestions()" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm">
+            <option value="Semua">Semua Tingkat</option>
+            <option value="Mudah">Mudah</option>
+            <option value="Sedang">Sedang</option>
+            <option value="Sulit">Sulit</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <span id="question-count-info" class="text-xs text-indigo-400 font-medium">Memuat bank soal...</span>
+        <button onclick="resetToDefaultQuestions()" class="text-xs text-slate-500 hover:text-rose-400 underline">
+          Reset ke Soal Bawaan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 3. MODAL UPLOAD / IMPORT SOAL (MASAL) ================= -->
+  <div id="modal-upload" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col">
+      <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-800/40">
+        <div>
+          <h3 class="font-bold text-lg text-white flex items-center gap-2">
+            <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i>Upload Bank Soal Sekaligus
+          </h3>
+          <p class="text-xs text-slate-400">Cukup gunakan file CSV atau salin tabel Excel.</p>
+        </div>
+        <button onclick="closeUploadModal()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+      </div>
+
+      <div class="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+        <div class="flex items-center justify-between p-4 bg-indigo-950/40 border border-indigo-800/60 rounded-xl">
+          <div>
+            <h4 class="font-bold text-sm text-indigo-200">Format Template CSV</h4>
+            <p class="text-xs text-slate-400">Unduh format template agar urutan kolom presisi.</p>
+          </div>
+          <button onclick="downloadCSVTemplate()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-lg text-xs flex items-center gap-2 shadow">
+            <i class="fa-solid fa-download"></i>Unduh Template
+          </button>
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-slate-300 uppercase">Pilih File CSV (.csv)</label>
+          <input type="file" id="csv-file-input" accept=".csv, text/csv" 
+                 class="block w-full text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-700 file:text-white hover:file:bg-slate-600 bg-slate-800 rounded-xl p-1 border border-slate-700 cursor-pointer">
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-slate-300 uppercase">Atau Tempel Baris Data Excel di Sini</label>
+          <textarea id="raw-csv-paste" rows="3" placeholder="Tempel baris dari Excel/Sheets ke sini..." 
+                    class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white font-mono focus:ring-1 focus:ring-indigo-500 focus:outline-none"></textarea>
+        </div>
+
+        <div class="flex items-center space-x-3 text-xs text-slate-300">
+          <label class="inline-flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" name="upload-mode" value="append" checked class="text-indigo-600">
+            <span>Tambahkan ke soal yang ada</span>
+          </label>
+          <label class="inline-flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" name="upload-mode" value="replace" class="text-rose-600">
+            <span class="text-rose-400">Ganti semua soal lama</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="p-4 bg-slate-800/40 border-t border-slate-800 flex justify-end space-x-3">
+        <button onclick="closeUploadModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-xs font-bold">Batal</button>
+        <button onclick="processBulkUpload()" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg flex items-center gap-2">
+          <i class="fa-solid fa-check"></i>Proses & Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 4. MODAL KELOLA SOAL ================= -->
+  <div id="modal-editor" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+      <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+        <h3 class="font-bold text-lg"><i class="fa-solid fa-database mr-2 text-indigo-400"></i>Daftar Soal Terdaftar</h3>
+        <button onclick="toggleQuestionEditor()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+      </div>
+      <div class="p-4 overflow-y-auto space-y-2 flex-grow" id="editor-question-list"></div>
+      <div class="p-4 border-t border-slate-800 flex justify-between items-center text-xs">
+        <span id="total-questions-stat" class="text-slate-400 font-semibold">Total: 0 Soal</span>
+        <button onclick="toggleQuestionEditor()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 5. LAYAR GAMEPLAY (WEBCAM FULLSCREEN) ================= -->
+  <div id="screen-game" class="hidden fixed inset-0 bg-black z-40 flex flex-col select-none overflow-hidden">
+    <div class="relative w-full h-full flex items-center justify-center">
+      <video id="webcam-video" autoplay playsinline muted class="w-full h-full object-cover video-mirror"></video>
+
+      <!-- Overlay Split-Zone -->
+      <div class="absolute inset-0 flex pointer-events-none">
+        <!-- Zona A -->
+        <div id="zone-a" class="flex-1 border-r-2 border-white/30 flex flex-col justify-between p-8 transition-colors duration-300 bg-blue-600/20">
+          <div class="inline-block self-start bg-blue-600 text-white font-black text-4xl px-6 py-2 rounded-2xl shadow-2xl border-2 border-white/50">
+            A
+          </div>
+          <div id="label-optA" class="bg-black/80 backdrop-blur-md text-white text-2xl font-bold px-6 py-4 rounded-2xl border border-white/30 shadow-2xl max-w-lg">
+            Pilihan A
+          </div>
+        </div>
+
+        <!-- Zona B -->
+        <div id="zone-b" class="flex-1 border-l-2 border-white/30 flex flex-col justify-between items-end p-8 transition-colors duration-300 bg-rose-600/20">
+          <div class="inline-block self-end bg-rose-600 text-white font-black text-4xl px-6 py-2 rounded-2xl shadow-2xl border-2 border-white/50">
+            B
+          </div>
+          <div id="label-optB" class="bg-black/80 backdrop-blur-md text-white text-2xl font-bold px-6 py-4 rounded-2xl border border-white/30 shadow-2xl text-right max-w-lg">
+            Pilihan B
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Overlay: Pertanyaan & Timer -->
+      <div class="absolute top-6 inset-x-8 flex flex-col items-center pointer-events-none">
+        <div class="w-full max-w-4xl bg-slate-950/90 backdrop-blur-md border border-white/20 p-6 rounded-3xl shadow-2xl text-center space-y-3">
+          <div class="flex items-center justify-between text-xs font-semibold text-slate-400 border-b border-slate-700/60 pb-2">
+            <span id="game-meta-info">SMP • INFORMATIKA</span>
+            <span id="game-progress-info">Soal 1 / 10</span>
+          </div>
+          <h2 id="game-question-text" class="text-2xl md:text-3xl font-extrabold text-white leading-snug drop-shadow-md">
+            Memuat pertanyaan kuis...
+          </h2>
+        </div>
+
+        <!-- Countdown Timer Menjawab -->
+        <div id="timer-box" class="mt-4 flex items-center space-x-3 bg-slate-900/90 border border-slate-700 px-5 py-2 rounded-full shadow-2xl">
+          <i class="fa-solid fa-stopwatch text-indigo-400"></i>
+          <span id="game-timer-num" class="font-mono text-3xl font-black text-yellow-400">10</span>
+          <span class="text-xs text-slate-400 font-bold uppercase">Detik</span>
+        </div>
+
+        <!-- Banner Kunci Jawaban & Countdown Jeda Otomatis -->
+        <div id="reveal-banner" class="hidden mt-4 flex flex-col items-center gap-2">
+          <div class="px-8 py-3 bg-emerald-500 text-slate-950 font-black text-3xl rounded-2xl shadow-2xl animate-bounce">
+            JAWABAN BENAR: <span id="reveal-key">A</span>
+          </div>
+          <div id="auto-countdown-banner" class="hidden px-5 py-1.5 bg-black/80 backdrop-blur-md border border-emerald-400/60 rounded-full text-xs font-bold text-emerald-300">
+            <i class="fa-solid fa-hourglass-half mr-1.5 animate-spin"></i>
+            Soal selanjutnya dalam <span id="auto-seconds-left" class="font-mono text-base text-yellow-300">3</span> detik...
+          </div>
+        </div>
+      </div>
+
+      <!-- Tombol Host Bawah Layar -->
+      <div class="absolute bottom-6 flex items-center space-x-4 pointer-events-auto">
+        <button onclick="stopGame()" class="px-5 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-rose-400 border border-slate-700 rounded-xl text-sm font-bold shadow-lg">
+          <i class="fa-solid fa-circle-stop mr-2"></i>Keluar ke Menu
+        </button>
+        <button id="btn-next-question" onclick="manualNextQuestion()" class="hidden px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-base font-black shadow-2xl">
+          Soal Selanjutnya <i class="fa-solid fa-arrow-right ml-2"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LOGIKA JAVASCRIPT ================= -->
+  <script>
+    const defaultQuestions = [
+      { id: 1, jenjang: "SMP", mapel: "Informatika", tingkat: "Sedang", pertanyaan: "Benua terluas di dunia adalah...", opsiA: "Benua Asia", opsiB: "Benua Afrika", jawaban: "A" },
+      { id: 2, jenjang: "SMP", mapel: "Informatika", tingkat: "Mudah", pertanyaan: "Komponen pemroses utama pada komputer adalah...", opsiA: "RAM", opsiB: "CPU", jawaban: "B" },
+      { id: 3, jenjang: "SMP", mapel: "Informatika", tingkat: "Sedang", pertanyaan: "Memecah persoalan besar menjadi komponen yang lebih kecil dinamakan...", opsiA: "Dekomposisi", opsiB: "Abstraksi", jawaban: "A" },
+      { id: 4, jenjang: "SMP", mapel: "Bahasa Indonesia", tingkat: "Mudah", pertanyaan: "Teks yang menggambarkan objek secara rinci adalah...", opsiA: "Deskripsi", opsiB: "Eksposisi", jawaban: "A" },
+      { id: 5, jenjang: "SD", mapel: "Matematika", tingkat: "Mudah", pertanyaan: "Berapakah hasil dari 15 + 25?", opsiA: "30", opsiB: "40", jawaban: "B" }
+    ];
+
+    let questions = JSON.parse(localStorage.getItem('quiz_questions')) || defaultQuestions;
+    let activeQuestions = [];
+    let currentQuestionIndex = 0;
+
+    // State Timer
+    let timerDuration = 10;
+    let autoNextDelay = 3; // Default 3 detik ganti otomatis (0 = manual)
+    let timerInterval = null;
+    let autoNextInterval = null;
+    let currentCountdown = 10;
+    let autoCountdownLeft = 3;
+    let webcamStream = null;
+
+    // Synthesizer Audio
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep(freq = 440, duration = 0.1) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+      osc.stop(audioCtx.currentTime + duration);
+    }
+    function playSuccessSound() {
+      playBeep(523.25, 0.15);
+      setTimeout(() => playBeep(659.25, 0.25), 150);
+    }
+
+    // Login
+    function togglePasswordVisibility() {
+      const input = document.getElementById('input-password');
+      const btn = document.getElementById('btn-toggle-text');
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = 'Tutup';
+      } else {
+        input.type = 'password';
+        btn.textContent = 'Lihat';
+      }
+    }
+
+    function handleLogin() {
+      const val = document.getElementById('input-password').value.trim();
+      if (val === 'guru123' || val === 'admin') {
+        document.getElementById('screen-login').classList.add('hidden');
+        document.getElementById('screen-settings').classList.remove('hidden');
+        initWebcam();
+        refreshMapelDropdown();
+        filterQuestions();
+      } else {
+        document.getElementById('login-error').classList.remove('hidden');
+      }
+    }
+
+    async function initWebcam() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        webcamStream = stream;
+        document.getElementById('webcam-video').srcObject = stream;
+        document.getElementById('camera-status').textContent = 'Kamera Aktif';
+      } catch (err) {
+        document.getElementById('camera-status').textContent = 'Kamera Gagal';
+        document.getElementById('camera-status').parentElement.classList.replace('text-emerald-400', 'text-rose-400');
+      }
+    }
+
+    // Timer Menjawab
+    function adjustTimer(step) {
+      timerDuration = Math.max(5, Math.min(60, timerDuration + step));
+      document.getElementById('timer-display').textContent = timerDuration;
+      updateTimerPresetButtons();
+      filterQuestions();
+    }
+
+    function setTimerPreset(sec) {
+      timerDuration = sec;
+      document.getElementById('timer-display').textContent = timerDuration;
+      updateTimerPresetButtons();
+      filterQuestions();
+    }
+
+    function updateTimerPresetButtons() {
+      document.querySelectorAll('.preset-timer').forEach(btn => {
+        const val = parseInt(btn.textContent);
+        if (val === timerDuration) {
+          btn.className = "preset-timer px-3 py-1 text-xs rounded-lg bg-indigo-600 font-bold text-white shadow";
+        } else {
+          btn.className = "preset-timer px-3 py-1 text-xs rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300";
+        }
+      });
+    }
+
+    // [FITUR BARU] Pengaturan Ganti Soal Otomatis (3, 5, 7, 10 detik, atau Manual)
+    function setAutoNext(sec) {
+      autoNextDelay = sec;
+      const display = document.getElementById('auto-next-display');
+      const timerDesc = document.getElementById('timer-desc-info');
+
+      if (sec === 0) {
+        display.textContent = 'Manual (Klik Guru)';
+        display.className = 'font-mono text-xs font-bold text-amber-300 bg-amber-950/80 border border-amber-700/60 px-3 py-1 rounded-lg';
+        timerDesc.textContent = 'Saat waktu habis, kunci jawaban ditampilkan. Guru menekan tombol untuk lanjut.';
+      } else {
+        display.textContent = `Otomatis (${sec} dtk)`;
+        display.className = 'font-mono text-xs font-bold text-indigo-300 bg-indigo-950/80 border border-indigo-700/60 px-3 py-1 rounded-lg';
+        timerDesc.textContent = `Saat waktu habis, kunci jawaban ditampilkan lalu otomatis berganti soal setelah ${sec} detik.`;
+      }
+
+      // Update styling tombol aktif
+      document.querySelectorAll('.btn-autonext').forEach(btn => {
+        const match = (sec === 0 && btn.textContent.includes('Manual')) || (sec > 0 && btn.textContent.includes(`${sec} detik`));
+        if (match) {
+          btn.className = "btn-autonext px-3.5 py-1.5 text-xs rounded-lg bg-indigo-600 text-white font-bold shadow";
+        } else {
+          btn.className = "btn-autonext px-3.5 py-1.5 text-xs rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300";
+        }
+      });
+
+      filterQuestions();
+    }
+
+    // Refresh Mata Pelajaran
+    function refreshMapelDropdown() {
+      const currentJenjang = document.getElementById('select-jenjang').value;
+      const mapelSelect = document.getElementById('select-mapel');
+      
+      const filteredByJenjang = questions.filter(q => q.jenjang === currentJenjang);
+      const uniqueMapels = [...new Set(filteredByJenjang.map(q => q.mapel))];
+
+      mapelSelect.innerHTML = '';
+      if (uniqueMapels.length === 0) {
+        mapelSelect.innerHTML = `<option value="">(Belum ada mapel)</option>`;
+      } else {
+        uniqueMapels.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m;
+          mapelSelect.appendChild(opt);
+        });
+      }
+    }
+
+    function filterQuestions() {
+      const jenjang = document.getElementById('select-jenjang').value;
+      const mapel = document.getElementById('select-mapel').value;
+      const tingkat = document.getElementById('select-tingkat').value;
+
+      activeQuestions = questions.filter(q => {
+        const matchJenjang = q.jenjang === jenjang;
+        const matchMapel = !mapel || q.mapel === mapel;
+        const matchTingkat = tingkat === 'Semua' || q.tingkat === tingkat;
+        return matchJenjang && matchMapel && matchTingkat;
+      });
+
+      const autoTxt = autoNextDelay > 0 ? `jeda otomatis ${autoNextDelay} dtk` : 'pergantian manual';
+      document.getElementById('question-count-info').textContent = 
+        `${activeQuestions.length} soal siap dimainkan, ${timerDuration} detik per soal (${autoTxt}).`;
+    }
+
+    document.getElementById('select-jenjang').addEventListener('change', () => {
+      refreshMapelDropdown();
+      filterQuestions();
+    });
+
+    // Upload & Import Soal
+    function openUploadModal() { document.getElementById('modal-upload').classList.remove('hidden'); }
+    function closeUploadModal() {
+      document.getElementById('modal-upload').classList.add('hidden');
+      document.getElementById('csv-file-input').value = '';
+      document.getElementById('raw-csv-paste').value = '';
+    }
+
+    function downloadCSVTemplate() {
+      const csvHeader = "Jenjang,Mapel,Tingkat,Pertanyaan,Opsi_A,Opsi_B,Jawaban\n";
+      const sampleRow1 = "SMP,Informatika,Sedang,Benua terluas di dunia adalah...,Benua Asia,Benua Afrika,A\n";
+      const sampleRow2 = "SMP,Informatika,Mudah,Otak pemroses komputer adalah...,RAM,CPU,B\n";
+      
+      const blob = new Blob([csvHeader + sampleRow1 + sampleRow2], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "template_soal_kuis.csv";
+      link.click();
+    }
+
+    async function processBulkUpload() {
+      const fileInput = document.getElementById('csv-file-input');
+      const pastedText = document.getElementById('raw-csv-paste').value.trim();
+      const mode = document.querySelector('input[name="upload-mode"]:checked').value;
+
+      let rawContent = "";
+      if (fileInput.files.length > 0) {
+        rawContent = await fileInput.files[0].text();
+      } else if (pastedText.length > 0) {
+        rawContent = pastedText;
+      } else {
+        alert("Pilih file CSV atau tempel teks dari Excel terlebih dahulu!");
+        return;
+      }
+
+      const lines = rawContent.split(/\r?\n/).filter(line => line.trim() !== "");
+      const parsedQuestions = [];
+      let startIndex = lines[0].toLowerCase().includes('jenjang') ? 1 : 0;
+
+      for (let i = startIndex; i < lines.length; i++) {
+        const row = lines[i].split(',').map(s => s.trim());
+        if (row.length >= 7) {
+          parsedQuestions.push({
+            id: Date.now() + Math.random(),
+            jenjang: row[0],
+            mapel: row[1],
+            tingkat: row[2],
+            pertanyaan: row[3],
+            opsiA: row[4],
+            opsiB: row[5],
+            jawaban: row[6].toUpperCase() === 'B' ? 'B' : 'A'
+          });
+        }
+      }
+
+      if (parsedQuestions.length === 0) {
+        alert("Format CSV tidak sesuai! Pastikan memiliki 7 kolom.");
+        return;
+      }
+
+      questions = mode === 'replace' ? parsedQuestions : [...questions, ...parsedQuestions];
+      localStorage.setItem('quiz_questions', JSON.stringify(questions));
+      alert(`Berhasil mengimpor ${parsedQuestions.length} soal!`);
+      closeUploadModal();
+      refreshMapelDropdown();
+      filterQuestions();
+    }
+
+    function resetToDefaultQuestions() {
+      if (confirm("Kembalikan semua soal ke bank soal bawaan?")) {
+        questions = [...defaultQuestions];
+        localStorage.setItem('quiz_questions', JSON.stringify(questions));
+        refreshMapelDropdown();
+        filterQuestions();
+      }
+    }
+
+    // Modal List Soal
+    function toggleQuestionEditor() {
+      const modal = document.getElementById('modal-editor');
+      modal.classList.toggle('hidden');
+      if (!modal.classList.contains('hidden')) {
+        renderEditorList();
+      }
+    }
+
+    function renderEditorList() {
+      const container = document.getElementById('editor-question-list');
+      const stat = document.getElementById('total-questions-stat');
+      container.innerHTML = '';
+      stat.textContent = `Total: ${questions.length} Soal Terdaftar`;
+
+      questions.forEach((q, index) => {
+        const item = document.createElement('div');
+        item.className = 'p-3 bg-slate-800 rounded-xl flex items-center justify-between text-xs border border-slate-700/80';
+        item.innerHTML = `
+          <div class="pr-3">
+            <div class="flex gap-2 items-center mb-1">
+              <span class="px-2 py-0.5 rounded bg-indigo-900/60 text-indigo-300 font-bold">${q.jenjang}</span>
+              <span class="px-2 py-0.5 rounded bg-slate-700 text-slate-300">${q.mapel}</span>
+              <span class="px-2 py-0.5 rounded bg-slate-700 text-slate-400">${q.tingkat}</span>
+            </div>
+            <p class="font-bold text-slate-200 text-sm">${index + 1}. ${q.pertanyaan}</p>
+            <p class="text-slate-400 mt-1">A: ${q.opsiA} | B: ${q.opsiB} • <span class="text-emerald-400 font-bold">Kunci: ${q.jawaban}</span></p>
+          </div>
+          <button onclick="deleteQuestion(${index})" class="text-rose-400 hover:text-rose-300 p-2 bg-rose-950/40 rounded-lg">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function deleteQuestion(index) {
+      if (confirm("Hapus soal ini?")) {
+        questions.splice(index, 1);
+        localStorage.setItem('quiz_questions', JSON.stringify(questions));
+        renderEditorList();
+        refreshMapelDropdown();
+        filterQuestions();
+      }
+    }
+
+    // ================= LOGIKA GAMEPLAY & AUTO NEXT =================
+    function startGame() {
+      if (activeQuestions.length === 0) {
+        alert("Tidak ada soal yang tersedia untuk pilihan filter ini.");
+        return;
+      }
+      currentQuestionIndex = 0;
+      document.getElementById('screen-settings').classList.add('hidden');
+      document.getElementById('screen-game').classList.remove('hidden');
+      loadQuestion();
+    }
+
+    function loadQuestion() {
+      clearInterval(timerInterval);
+      clearInterval(autoNextInterval);
+
+      const q = activeQuestions[currentQuestionIndex];
+
+      // Reset Gaya Zona
+      const zoneA = document.getElementById('zone-a');
+      const zoneB = document.getElementById('zone-b');
+      zoneA.className = "flex-1 border-r-2 border-white/30 flex flex-col justify-between p-8 transition-colors duration-300 bg-blue-600/20";
+      zoneB.className = "flex-1 border-l-2 border-white/30 flex flex-col justify-between items-end p-8 transition-colors duration-300 bg-rose-600/20";
+
+      // Reset Tampilan Banner Kunci & Tombol Lanjut
+      document.getElementById('reveal-banner').classList.add('hidden');
+      document.getElementById('auto-countdown-banner').classList.add('hidden');
+      document.getElementById('btn-next-question').classList.add('hidden');
+      document.getElementById('timer-box').classList.remove('hidden');
+
+      // Tampilkan Soal & Metadata
+      document.getElementById('game-meta-info').textContent = `${q.jenjang} • ${q.mapel.toUpperCase()} (${q.tingkat.toUpperCase()})`;
+      document.getElementById('game-progress-info').textContent = `Soal ${currentQuestionIndex + 1} / ${activeQuestions.length}`;
+      document.getElementById('game-question-text').textContent = q.pertanyaan;
+      document.getElementById('label-optA').textContent = `A. ${q.opsiA}`;
+      document.getElementById('label-optB').textContent = `B. ${q.opsiB}`;
+
+      // Hitung Mundur Menjawab Soal
+      currentCountdown = timerDuration;
+      document.getElementById('game-timer-num').textContent = currentCountdown;
+
+      timerInterval = setInterval(() => {
+        currentCountdown--;
+        document.getElementById('game-timer-num').textContent = currentCountdown;
+        if (currentCountdown <= 3 && currentCountdown > 0) {
+          playBeep(880, 0.08);
+        }
+        if (currentCountdown <= 0) {
+          clearInterval(timerInterval);
+          revealAnswer();
+        }
+      }, 1000);
+    }
+
+    function revealAnswer() {
+      const q = activeQuestions[currentQuestionIndex];
+      const zoneA = document.getElementById('zone-a');
+      const zoneB = document.getElementById('zone-b');
+      const banner = document.getElementById('reveal-banner');
+      const keySpan = document.getElementById('reveal-key');
+
+      keySpan.textContent = q.jawaban;
+      banner.classList.remove('hidden');
+      playSuccessSound();
+
+      // Highlight Sisi Benar (Hijau) & Sisi Salah (Merah Redup)
+      if (q.jawaban === 'A') {
+        zoneA.className = "flex-1 border-r-4 border-emerald-400 flex flex-col justify-between p-8 transition-all duration-300 bg-emerald-600/60 shadow-inner";
+        zoneB.className = "flex-1 border-l-4 border-rose-600 flex flex-col justify-between items-end p-8 transition-all duration-300 bg-rose-900/60 opacity-60";
+      } else {
+        zoneB.className = "flex-1 border-l-4 border-emerald-400 flex flex-col justify-between items-end p-8 transition-all duration-300 bg-emerald-600/60 shadow-inner";
+        zoneA.className = "flex-1 border-r-4 border-rose-600 flex flex-col justify-between p-8 transition-all duration-300 bg-rose-900/60 opacity-60";
+      }
+
+      // [LOGIKA GANTI SOAL OTOMATIS]
+      if (autoNextDelay > 0) {
+        // Mode Otomatis Aktif
+        const countdownBanner = document.getElementById('auto-countdown-banner');
+        const secondsLeftSpan = document.getElementById('auto-seconds-left');
+        countdownBanner.classList.remove('hidden');
+        
+        autoCountdownLeft = autoNextDelay;
+        secondsLeftSpan.textContent = autoCountdownLeft;
+
+        autoNextInterval = setInterval(() => {
+          autoCountdownLeft--;
+          secondsLeftSpan.textContent = autoCountdownLeft;
+          if (autoCountdownLeft <= 0) {
+            clearInterval(autoNextInterval);
+            advanceToNext();
+          }
+        }, 1000);
+      } else {
+        // Mode Manual: Guru Mengklik Tombol
+        document.getElementById('btn-next-question').classList.remove('hidden');
+      }
+    }
+
+    function manualNextQuestion() {
+      clearInterval(autoNextInterval);
+      advanceToNext();
+    }
+
+    function advanceToNext() {
+      currentQuestionIndex++;
+      if (currentQuestionIndex < activeQuestions.length) {
+        loadQuestion();
+      } else {
+        alert("🎉 Kuis telah selesai!");
+        stopGame();
+      }
+    }
+
+    function stopGame() {
+      clearInterval(timerInterval);
+      clearInterval(autoNextInterval);
+      document.getElementById('screen-game').classList.add('hidden');
+      document.getElementById('screen-settings').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
